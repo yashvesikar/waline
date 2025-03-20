@@ -3,18 +3,26 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 WORKDIR /app
 
-RUN apk add --no-cache bash tzdata && \
-    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
-    echo "Asia/Shanghai" > /etc/timezone && \
+# Add build dependencies needed for SQLite native modules
+RUN apk add --no-cache bash tzdata python3 make g++ && \
+    cp /usr/share/zoneinfo/America/Los_Angeles /etc/localtime && \
+    echo "America/Los_Angeles" > /etc/timezone && \
     corepack enable
 
 COPY . .
 
 FROM base AS prod-deps
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod
+# Remove --ignore-scripts to allow SQLite3 to build its native modules
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --store-dir=/pnpm/store --no-optional
+
+# Force rebuild of SQLite bindings in the target architecture
+RUN cd /app/node_modules/.pnpm/sqlite3@5.1.7/node_modules/sqlite3 && \
+    npm run install --build-from-source
 
 FROM base AS runtime
 ENV NODE_ENV=production
 COPY --from=prod-deps /app /app
+RUN mkdir -p /data
+COPY waline.sqlite /data
 EXPOSE 8360
 CMD ["node", "vanilla.js"]

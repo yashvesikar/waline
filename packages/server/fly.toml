@@ -1,0 +1,30 @@
+# fly.toml app configuration file generated for waline on 2025-03-20T13:54:33-07:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'waline'
+primary_region = 'sjc'
+
+[build]
+  dockerfile = './Dockerfile.source-build-alpine'
+  ignorefile = './.dockerignore'
+
+[env]
+  SQLITE_PATH = '/data/waline.sqlite'
+
+[http_service]
+  internal_port = 8360
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+[mounts]
+  source = "db"
+  destination = "/data"
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1
